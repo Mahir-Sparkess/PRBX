@@ -4,6 +4,23 @@ import tempfile
 import numpy as np
 import copy
 
+bpy.data.scenes[0].render.engine = "CYCLES"
+
+# Set the device_type
+bpy.context.preferences.addons[
+    "cycles"
+].preferences.compute_device_type = "CUDA" # or "OPENCL"
+
+# Set the device and feature set
+bpy.context.scene.cycles.device = "GPU"
+
+# get_devices() to let Blender detects GPU device
+bpy.context.preferences.addons["cycles"].preferences.get_devices()
+print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+
+bpy.context.scene.render.engine = 'CYCLES'
+bpy.context.scene.cycles.device = 'GPU'
+
 
 def pil_to_image(pil_image, name):
     # setup PIL image conversion
@@ -66,11 +83,11 @@ def get_rendered_material(diffuse: Image, normal: Image, roughness: Image, specu
     obj.data.materials.append(material)
 
     light_data = bpy.data.lights.new(name="light_2.80", type='POINT')
-    light_data.energy = 75
+    light_data.energy = 100
     light = bpy.data.objects.new(name="light_2.80", object_data=light_data)
     bpy.context.collection.objects.link(light)
     bpy.context.view_layer.objects.active = light
-    light.location = (0, 0.5, 0.75)
+    light.location = (0, 0, 1)
 
     camera = bpy.data.objects['Camera']
     camera.location = (0, 0, 2.75)
