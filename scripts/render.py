@@ -1,8 +1,12 @@
 import bpy
+import sys
+import os
 from PIL import Image
 import tempfile
 import numpy as np
 import copy
+import torch
+import torchvision.transforms as T
 
 bpy.data.scenes[0].render.engine = "CYCLES"
 
@@ -16,14 +20,18 @@ bpy.context.scene.cycles.device = "GPU"
 
 # get_devices() to let Blender detects GPU device
 bpy.context.preferences.addons["cycles"].preferences.get_devices()
-print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
+# print(bpy.context.preferences.addons["cycles"].preferences.compute_device_type)
 
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.context.scene.cycles.device = 'GPU'
 
+to_pil = T.ToPILImage()
 
-def pil_to_image(pil_image, name):
+
+def to_image(image: torch.Tensor, name: str):
     # setup PIL image conversion
+    pil_image = to_pil(image)
+    # pil_image.show()
     width = pil_image.width
     height = pil_image.height
     byte_to_normalized = 1.0 / 255.0
@@ -38,12 +46,15 @@ def pil_to_image(pil_image, name):
     return bpy_image
 
 
-def get_rendered_material(diffuse: Image, normal: Image, roughness: Image, specular: Image):
+def get_rendered_material(material_tensor: torch.Tensor):
+
     # Load the texture maps
-    diffuse_map = pil_to_image(diffuse, "diffuse")
-    roughness_map = pil_to_image(roughness, 'roughness')
-    specular_map = pil_to_image(specular, "specular")
-    normal_map = pil_to_image(normal, "normal")
+    tensors = torch.chunk(material_tensor, 4, dim=0)
+
+    diffuse_map = to_image(tensors[1], "diffuse")
+    roughness_map = to_image(tensors[2], 'roughness')
+    specular_map = to_image(tensors[3], "specular")
+    normal_map = to_image(tensors[0], "normal")
 
     for area in bpy.context.screen.areas:
         if area.type == 'VIEW_3D':
@@ -67,7 +78,7 @@ def get_rendered_material(diffuse: Image, normal: Image, roughness: Image, specu
     normal_n.image = normal_map
     normal_n.image.colorspace_settings.name = 'Non-Color'
     norm_vector = nodes.new('ShaderNodeNormalMap')
-    norm_vector['default_value'] = 5.0
+    norm_vector['default_value'] = 10.0
     specular_n = nodes.new('ShaderNodeTexImage')
     specular_n.image = specular_map
     roughness_n = nodes.new('ShaderNodeTexImage')
@@ -83,7 +94,7 @@ def get_rendered_material(diffuse: Image, normal: Image, roughness: Image, specu
     obj.data.materials.append(material)
 
     light_data = bpy.data.lights.new(name="light_2.80", type='POINT')
-    light_data.energy = 100
+    light_data.energy = 120
     light = bpy.data.objects.new(name="light_2.80", object_data=light_data)
     bpy.context.collection.objects.link(light)
     bpy.context.view_layer.objects.active = light
@@ -103,5 +114,5 @@ def get_rendered_material(diffuse: Image, normal: Image, roughness: Image, specu
         render.filepath = f'{tempdir}/output.png'
         bpy.ops.render.render(write_still=True)
         rendered_img = copy.deepcopy(Image.open(f'{tempdir}/output.png'))
-        rendered_img = np.array(rendered_img)
+        rendered_img = T.PILToTensor()(rendered_img.convert('RGB'))
     return rendered_img
