@@ -4,6 +4,30 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import PILToTensor, ToPILImage
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
+import numpy as np
+
+
+both_transform = A.Compose(
+    [A.Resize(width=256, height=256)], additional_targets={"image0": "image"},
+)
+
+transform_only_input = A.Compose(
+    [
+        A.HorizontalFlip(p=0.5),
+        A.ColorJitter(p=0.2),
+        A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255.0,),
+        ToTensorV2(),
+    ]
+)
+
+transform_only_mask = A.Compose(
+    [
+        A.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255.0,),
+        ToTensorV2(),
+    ]
+)
 
 
 class FabricDataset(Dataset):
@@ -21,12 +45,17 @@ class FabricDataset(Dataset):
 
         convert_tensor = PILToTensor()
 
-        input_image = convert_tensor(Image.open(filepath))
+        input_image = np.array(Image.open(filepath))
         target_images = [
-            convert_tensor(Image.open(os.path.join(self.target_dir, f"{filename.split('.')[0]}-outputs-{i}-.png")))
-            for i in range(4)]
-        target_image = torch.cat(target_images[:], dim=0)
-        return input_image, target_image
+            np.array(Image.open(os.path.join(self.target_dir, f"{filename.split('.')[0]}-outputs-{i}-.png")))
+            for i in range(4)
+        ]
+
+        input_tensor = transform_only_input(image=input_image)["image"]
+        target_tensors = [transform_only_mask(image=target_image)["image"] for target_image in target_images]
+
+        target_tensor = torch.cat(target_tensors[:], dim=0)
+        return input_tensor, target_tensor
 
 
 def test():

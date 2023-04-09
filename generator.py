@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torchvision.transforms.functional as F
+import torchvision.transforms as T
 
 
 class Block(nn.Module):
@@ -52,6 +54,9 @@ class Generator(nn.Module):
         )
 
     def forward(self, x):
+        x = F.adjust_sharpness(x, 5.0)
+        x = F.adjust_contrast(x, 5.0)
+
         d1 = self.initial_down(x.float())
         d2 = self.down1(d1)
         d3 = self.down2(d2)
@@ -79,7 +84,6 @@ def test():
     y = model(x)
     print(y.shape)
 
-    import torchvision.transforms as T
     outputs = torch.chunk(y, 4, dim=1)
     to_pil = T.ToPILImage()
     for tensor in outputs:

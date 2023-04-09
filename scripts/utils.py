@@ -6,20 +6,22 @@ from PIL import Image
 to_pil = T.ToPILImage()
 
 
-def save_example(gen, val_loader, epoch, folder, device):
+def save_example(gen, val_loader, epoch, folder, device, batch_size):
     x, y = next(iter(val_loader))
     x, y = x.to(device), y.to(device)
+    x = torch.chunk(x, batch_size, dim=0)[0]
+    y = torch.chunk(y, batch_size, dim=0)[0]
 
     gen.eval()
     with torch.no_grad():
         y_preds: torch.Tensor = gen(x)
-        y_fakes = torch.chunk(y_preds.squeeze(), 4, dim=0)
+        y_fakes = torch.chunk((y_preds * 0.5 + 0.5).squeeze(), 4, dim=0)
         y_fakes = torch.cat(y_fakes, dim=2)
-        y_reals = torch.chunk(y.squeeze(), 4, dim=0)
+        y_reals = torch.chunk((y * 0.5 + 0.5).squeeze(), 4, dim=0)
         y_reals = torch.cat(y_reals, dim=2)
-        to_pil(x.squeeze()).save(folder + f"/input_{epoch}.png")
-        to_pil(y_fakes).save(folder + f"/y_gen_{epoch}.png")
-        to_pil(y_reals).save(folder + f"/y_{epoch}.png")
+        to_pil((x * 0.5 + 0.5).squeeze()).save(folder + f"/input_{epoch}-4.png")
+        to_pil(y_fakes).save(folder + f"/y_gen_{epoch}-4.png")
+        to_pil(y_reals).save(folder + f"/y_{epoch}-4.png")
         # if epoch == 1:
         #     y_reals = torch.chunk(y.squeeze(), 4, dim=0)
         #     for y_real, y_real_map in zip(y_reals, ["normal", "diffuse", "roughness", "specular"]):
