@@ -40,7 +40,7 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr, device):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(checkpoint_file, map_location=device)
+    checkpoint = torch.load(f=checkpoint_file, map_location=device)
     model.load_state_dict(checkpoint["state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer"])
 
@@ -48,3 +48,9 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr, device):
     # and it will lead to many hours of debugging \:
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
+
+
+def load_model(checkpoint_file, model: torch.nn.Module, device):
+    print("=> Loading checkpoint")
+    checkpoint = torch.load(f=checkpoint_file, map_location=device)
+    model.load_state_dict(state_dict=checkpoint["state_dict"], strict=True)
